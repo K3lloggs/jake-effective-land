@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jake Effective Land</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: a trading terminal. One dark world, hairline panels, dense mono rows, amber for focus, green/red for edge. */
+:root{
+  color-scheme:dark;
+  --bg:#080b0e; --panel:#0e1317; --panel2:#131a20; --hair:#1f2931; --hair2:#2b3842;
+  --ink:#dce3e9; --ink2:#93a1ad; --ink3:#5f6e7a;
+  --accent:#f0a020; --accent-ink:#120c00; --accent-soft:rgba(240,160,32,.12);
+  --good:#27c07d; --good-bg:rgba(39,192,125,.13); --mid:#4aa8ff; --mid-bg:rgba(74,168,255,.13);
+  --warn:#f0a020; --warn-bg:rgba(240,160,32,.13); --low:#7d8a96; --low-bg:rgba(125,138,150,.12); --bad:#f0524f; --bad-bg:rgba(240,82,79,.13);
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace; --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif; --display:var(--mono);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:var(--body);color:var(--ink);background:var(--bg);font-size:13px;line-height:1.4;min-height:100vh;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1500px;margin:0 auto;padding:12px 16px 60px;display:flex;flex-direction:column;gap:8px}
+.glass{background:var(--panel);border:1px solid var(--hair);border-radius:3px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+button,select,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:1px solid var(--accent);outline-offset:1px}
+::-webkit-scrollbar{width:10px;height:10px} ::-webkit-scrollbar-thumb{background:var(--hair2)} ::-webkit-scrollbar-track{background:var(--bg)}
+
+header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:4px 2px}
+.brand{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+h1{font-family:var(--mono);font-weight:700;font-size:15px;letter-spacing:.08em;margin:0;text-transform:uppercase}
+h1 b{background:var(--accent);color:var(--accent-ink);padding:2px 7px;margin-right:8px;font-weight:700}
+.sub{color:var(--ink3);font-family:var(--mono);font-size:11.5px}
+.live{color:var(--good);font-family:var(--mono);font-size:11px}
+.live::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--good);margin-right:6px;box-shadow:0 0 8px var(--good)}
+.actions{display:flex;gap:6px;flex-wrap:wrap}
+.btn{border:1px solid var(--hair2);background:var(--panel2);border-radius:2px;padding:6px 12px;font-family:var(--mono);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.06em}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)} .btn.primary:hover{color:var(--accent-ink);filter:brightness(1.1)}
+.btn.sm{padding:5px 10px}
+
+.stats{display:grid;grid-template-columns:repeat(6,1fr) 1.6fr;gap:1px;background:var(--hair);border:1px solid var(--hair);border-radius:3px;overflow:hidden}
+.stat{background:var(--panel);padding:8px 12px;min-width:0}
+.stat .l{font-family:var(--mono);font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:.1em}
+.stat .v{font-family:var(--mono);font-size:19px;font-weight:600;margin-top:1px;white-space:nowrap}
+.stat .v.up{color:var(--good)} .stat .v.am{color:var(--accent)}
+.depth{display:flex;height:8px;margin-top:8px;gap:1px} .depth i{display:block;height:100%}
+.depth .A{background:var(--good)} .depth .B{background:var(--mid)} .depth .C{background:var(--warn)} .depth .D{background:var(--hair2)}
+.dl{display:flex;gap:10px;font-family:var(--mono);font-size:10px;color:var(--ink3);margin-top:4px;flex-wrap:wrap}
+
+.controls{padding:6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;position:sticky;top:0;z-index:5}
+.search{flex:1 1 220px;min-width:170px;border:1px solid var(--hair2);background:var(--bg);border-radius:2px;padding:6px 10px;font-family:var(--mono);font-size:12px}
+.search::placeholder{color:var(--ink3)}
+.seg{display:flex;border:1px solid var(--hair2);border-radius:2px;overflow:hidden}
+.seg button{border:0;border-right:1px solid var(--hair2);background:var(--bg);padding:6px 10px;font-family:var(--mono);font-size:11px;font-weight:600;color:var(--ink2);text-transform:uppercase;letter-spacing:.04em}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.chk{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;font-weight:600;color:var(--ink2);padding:4px 6px;text-transform:uppercase;letter-spacing:.04em}
+.chk input{accent-color:var(--accent);width:14px;height:14px}
+.kbd{font-family:var(--mono);font-size:10.5px;color:var(--ink3);margin-left:auto;white-space:nowrap}
+.kbd kbd{border:1px solid var(--hair2);border-radius:2px;padding:0 4px;color:var(--ink2);font-family:inherit}
+
+.list{overflow:hidden}
+.row,.head{display:grid;grid-template-columns:52px minmax(200px,2.4fr) 56px 44px 52px 1fr 1fr 70px 50px 1fr 1fr 74px 14px;gap:10px;align-items:center;padding:0 10px}
+.head{font-family:var(--mono);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);border-bottom:1px solid var(--hair2);background:var(--panel2);height:28px}
+.head button{all:unset;cursor:pointer;display:block;width:100%} .head button:hover{color:var(--ink)} .head .on{color:var(--accent)}
+.head .r,.row .r{text-align:right}
+.row{border:0;border-bottom:1px solid var(--hair);background:transparent;width:100%;text-align:left;height:34px;font-family:var(--mono);font-size:12.5px}
+.row:hover{background:var(--panel2)} .row.sel{background:var(--accent-soft);box-shadow:inset 2px 0 0 var(--accent)}
+.row .c-addr{display:flex;gap:8px;align-items:baseline;min-width:0;white-space:nowrap;overflow:hidden}
+.row .a1{font-weight:600;font-family:var(--body);font-size:13px;overflow:hidden;text-overflow:ellipsis;flex:none;max-width:100%}
+.row .a2{font-size:11px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;font-family:var(--body)}
+.row .k{display:none}
+.muted{color:var(--ink3)} .up{color:var(--good)} .dn{color:var(--bad)}
+.pill{display:inline-flex;align-items:center;justify-content:space-between;gap:4px;width:44px;padding:2px 6px;border-radius:2px;font-family:var(--mono);font-weight:700;font-size:12px}
+.pill small{font-size:9px;opacity:.8}
+.t-A{color:var(--good);background:var(--good-bg)} .t-B{color:var(--mid);background:var(--mid-bg)} .t-C{color:var(--warn);background:var(--warn-bg)} .t-D,.t-P{color:var(--low);background:var(--low-bg)}
+.tag{display:inline-block;font-family:var(--mono);font-size:9.5px;font-weight:600;padding:1px 5px;border-radius:2px;background:var(--low-bg);color:var(--ink2);text-transform:uppercase;letter-spacing:.04em}
+.tag.lien{background:var(--bad-bg);color:var(--bad)} .tag.asm{background:var(--mid-bg);color:var(--mid)}
+.dot{display:block;width:7px;height:7px;border-radius:50%;background:var(--hair2)}
+.dot.s-queued{background:var(--mid)} .dot.s-sent{background:var(--warn)} .dot.s-replied{background:var(--good)} .dot.s-dead{background:var(--bad)}
+.dot.s-emailed,.dot.s-called,.dot.s-voicemail{background:var(--warn)} .dot.s-interested,.dot.s-callback{background:var(--good)} .dot.s-wrong,.dot.s-dnc{background:var(--bad)}
+.desk{position:fixed;inset:0;z-index:30;background:var(--bg);display:none;flex-direction:column}
+.desk.on{display:flex}
+.deskbar{display:flex;align-items:center;gap:12px;padding:8px 14px;border-bottom:1px solid var(--hair2);background:var(--panel2);flex-wrap:wrap}
+.deskbar h2{font-family:var(--mono);font-size:13px;letter-spacing:.1em;text-transform:uppercase;margin:0}
+.deskgrid{flex:1;display:grid;grid-template-columns:300px 1fr;min-height:0}
+.dq{border-right:1px solid var(--hair2);overflow:auto}
+.dq button{all:unset;box-sizing:border-box;display:flex;gap:8px;align-items:center;width:100%;padding:7px 10px;border-bottom:1px solid var(--hair);cursor:pointer;font-size:12.5px}
+.dq button:hover{background:var(--panel2)} .dq button.cur{background:var(--accent-soft);box-shadow:inset 2px 0 0 var(--accent)} .dq button.done{opacity:.45}
+.dq .q1{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dmain{overflow:auto;padding:18px 22px 30px;display:flex;flex-direction:column;gap:16px;max-width:980px}
+.dmain h2{font-family:var(--body);font-size:26px;margin:0;line-height:1.1}
+.phone{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--hair)}
+.phone a.dial{font-family:var(--mono);font-size:22px;font-weight:700;color:var(--accent-ink);background:var(--good);text-decoration:none;padding:6px 14px;border-radius:2px;min-width:215px;text-align:center}
+.phone a.dial:hover{filter:brightness(1.12)} .phone.old a.dial{background:var(--hair2);color:var(--ink)}
+.outs{display:flex;gap:6px;flex-wrap:wrap}
+.outs .btn{padding:9px 13px;font-size:12px} .btn.g{border-color:var(--good);color:var(--good)} .btn.r{border-color:var(--bad);color:var(--bad)}
+.script{border-left:2px solid var(--accent);padding:4px 0 4px 14px;font-size:14.5px;line-height:1.6;max-width:70ch}
+.pts{margin:0;padding-left:18px;font-size:13px;color:var(--ink2);line-height:1.7}
+.eq{display:grid;grid-template-columns:22px 1.3fr 1.3fr 90px;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--hair);font-size:12.5px}
+.eq .num{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.logl{font-family:var(--mono);font-size:11.5px;color:var(--ink2);line-height:1.7;max-height:180px;overflow:auto}
+pre.prev{white-space:pre-wrap;font-family:var(--mono);font-size:12px;line-height:1.5;border:1px solid var(--hair2);background:var(--bg);padding:10px;margin:0;max-height:260px;overflow:auto}
+.drawer.wide{width:min(760px,100vw)}
+@media (max-width:800px){.deskgrid{grid-template-columns:1fr} .dq{max-height:150px;border-right:0;border-bottom:1px solid var(--hair2)}}
+.empty{padding:40px;text-align:center;color:var(--ink2);font-family:var(--mono)}
+.foot{font-size:11.5px;color:var(--ink3);padding:4px 2px;max-width:110ch}
+
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:opacity .15s;z-index:20}
+.scrim.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(560px,100vw);z-index:21;transform:translateX(100%);transition:transform .18s ease-out;display:flex;flex-direction:column;background:var(--panel);border:0;border-left:1px solid var(--hair2);border-radius:0;overflow:hidden}
+.drawer.on{transform:none}
+.dhead{padding:12px 16px;border-bottom:1px solid var(--hair2);display:flex;gap:12px;align-items:center;background:var(--panel2)}
+.dhead h2{font-family:var(--body);font-size:18px;font-weight:700;margin:0;line-height:1.15}
+.dhead .sub{margin-top:2px}
+.x{margin-left:auto;border:1px solid var(--hair2);background:transparent;border-radius:2px;width:28px;height:28px;font-size:16px;line-height:1;flex:none;color:var(--ink2)}
+.x:hover{border-color:var(--bad);color:var(--bad)}
+.dbody{overflow:auto;padding:14px 16px 28px;display:flex;flex-direction:column;gap:18px}
+.ring{flex:none;width:46px;height:46px;border-radius:2px;display:grid;place-items:center;font-family:var(--mono);font-weight:700;font-size:18px}
+h3{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--accent);margin:0 0 8px;font-weight:600;padding-bottom:5px;border-bottom:1px solid var(--hair)}
+.ladder{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--hair);border:1px solid var(--hair)}
+.step{background:var(--bg);padding:10px 12px}
+.step.main{background:var(--good-bg)} .step.main .v{color:var(--good)}
+.step:last-child .v{color:var(--bad)}
+.step .l{font-family:var(--mono);font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:.08em} .step .v{font-family:var(--mono);font-size:19px;font-weight:600;margin-top:2px} .step .d{font-family:var(--mono);font-size:10.5px;color:var(--ink3)}
+.bar{display:grid;grid-template-columns:120px 1fr 44px;gap:10px;align-items:center;font-size:12.5px;padding:4px 0}
+.bar .track{height:5px;background:var(--hair);overflow:hidden} .bar .fill{height:100%;background:var(--accent)}
+.bar .why{grid-column:2/4;font-size:11.5px;color:var(--ink3);margin-top:-2px}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--hair);border:1px solid var(--hair)}
+.fact{background:var(--bg);padding:7px 10px}
+.fact .l{font-family:var(--mono);font-size:9.5px;color:var(--ink3);text-transform:uppercase;letter-spacing:.08em} .fact .v{font-family:var(--mono);font-weight:600;font-size:13px}
+.kv{display:grid;grid-template-columns:150px 1fr;gap:3px 12px;font-size:12px;margin:0}
+.kv dt{color:var(--ink3)} .kv dd{margin:0;word-break:break-word;font-family:var(--mono)}
+.box{border:1px solid var(--hair);background:var(--bg);border-radius:2px;padding:10px 12px}
+.links{display:flex;gap:6px;flex-wrap:wrap}
+.links a{color:var(--mid);font-family:var(--mono);font-weight:500;font-size:11.5px;text-decoration:none;border:1px solid var(--hair2);padding:5px 10px;border-radius:2px}
+.links a:hover{border-color:var(--mid)}
+textarea.letter{width:100%;min-height:230px;border:1px solid var(--hair2);background:var(--bg);border-radius:2px;padding:10px;font-family:var(--mono);font-size:12px;line-height:1.5;resize:vertical}
+.rowf{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.field{display:flex;flex-direction:column;gap:4px;font-family:var(--mono);font-size:10px;color:var(--ink3);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.field input,.field select{border:1px solid var(--hair2);background:var(--bg);border-radius:2px;padding:7px 9px;font-family:var(--mono);font-size:13px;font-weight:500;min-width:0;text-transform:none;letter-spacing:0;color:var(--ink)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.note{font-size:12px;color:var(--ink2);line-height:1.5}
+.toast{position:fixed;left:50%;bottom:20px;transform:translate(-50%,20px);background:var(--accent);color:var(--accent-ink);padding:8px 16px;border-radius:2px;font-family:var(--mono);font-weight:600;font-size:12px;opacity:0;transition:.15s;z-index:40;pointer-events:none}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+
+@media (max-width:1000px){
+  .stats{grid-template-columns:repeat(3,1fr)} .stats .wide{grid-column:1/-1}
+  .kbd{display:none}
+  .head{display:none}
+  .row{grid-template-columns:50px 1fr 1fr 1fr 12px;row-gap:4px;padding:8px 10px;height:auto}
+  .row .c-addr{grid-column:2/5;flex-wrap:wrap} .row .c-score{grid-row:1/3} .row .c-dot{grid-column:5;grid-row:1}
+  .row .c-bb,.row .c-st{display:none}
+  .row .r{text-align:left}
+  .row .k{display:block;font-size:9.5px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em}
+}
+@media (max-width:480px){.facts{grid-template-columns:repeat(2,1fr)} .ladder{grid-template-columns:1fr} .grid2{grid-template-columns:1fr} .kv{grid-template-columns:120px 1fr} .stats{grid-template-columns:repeat(2,1fr)}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ---------- map-first layout: full-screen map, analytics in a side panel ---------- */
+html,body{height:100%;overflow:hidden}
+#map{position:fixed;inset:0;z-index:0;background:#0b0f12}
+.wrap{position:fixed;top:10px;left:10px;bottom:10px;width:430px;max-width:calc(100vw - 20px);margin:0;padding:10px;gap:8px;z-index:10;background:rgba(8,11,14,.93);border:1px solid var(--hair2);border-radius:4px;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);transition:transform .2s}
+body.side-hid .wrap{transform:translateX(-450px)}
+.wrap header.top{padding:0;gap:8px} .wrap .brand .sub{display:none} .wrap h1{font-size:13px}
+.wrap .actions .btn{padding:5px 8px;font-size:10.5px}
+.wrap .stats{grid-template-columns:repeat(3,1fr)} .wrap .stat{padding:6px 9px} .wrap .stat .v{font-size:15px} .wrap .stat.wide{grid-column:1/-1}
+.wrap .depth{margin-top:5px;height:6px}
+.wrap .controls{position:static;padding:6px} .wrap .kbd{display:none} .wrap .search{flex:1 1 100%}
+.wrap .seg button{padding:5px 7px;font-size:10.5px} .wrap .chk{font-size:10.5px;padding:2px 4px}
+.wrap .list{flex:1;min-height:0;display:flex;flex-direction:column}
+.wrap #rows{flex:1;overflow:auto}
+.wrap .head{display:flex;gap:4px;align-items:center;height:26px;padding:0 8px;letter-spacing:.06em}
+.wrap .head button{width:auto;padding:2px 6px}
+.wrap .row{display:grid;grid-template-columns:46px minmax(0,1fr) 9px;gap:8px;align-items:center;height:auto;padding:6px 8px}
+.wrap .row .c-score{grid-row:auto} .wrap .row .c-dot{grid-column:auto;grid-row:auto}
+.row .l1{display:flex;gap:6px;align-items:baseline;white-space:nowrap;overflow:hidden}
+.row .l1 .a1{flex:0 1 auto;min-width:0} .row .l1 .tgt{margin-left:auto;font-weight:600;font-size:12.5px}
+.row .l2{font-size:11px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.row .l3{font-size:11px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--body)}
+.mapctl{position:fixed;top:10px;left:450px;z-index:9;display:flex;gap:6px;align-items:center;flex-wrap:wrap;transition:left .2s;max-width:calc(100vw - 470px)}
+body.side-hid .mapctl{left:10px;max-width:calc(100vw - 20px)}
+.mapctl .seg,.mapctl .btn,.legend{background:rgba(8,11,14,.9)}
+.legend{display:flex;gap:10px;align-items:center;border:1px solid var(--hair2);border-radius:2px;padding:5px 9px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);text-transform:uppercase;letter-spacing:.04em}
+.legend i{display:inline-block;width:9px;height:9px;margin-right:4px;border-radius:1px;vertical-align:-1px}
+.drawer{z-index:21;box-shadow:-12px 0 40px rgba(0,0,0,.5)}
+body.dopen .leaflet-right{right:415px}
+#drawer{top:10px;right:10px;bottom:10px;width:min(395px,calc(100vw - 20px));border:1px solid var(--hair2);border-radius:4px;background:rgba(12,17,21,.95);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);transform:translateX(calc(100% + 24px));box-shadow:0 10px 40px rgba(0,0,0,.55)}
+#drawer.on{transform:none}
+#drawer .dhead{padding:9px 12px;gap:10px} #drawer .dhead h2{font-size:15.5px} #drawer .dhead .sub{font-size:10.5px}
+#drawer .ring{width:36px;height:36px;font-size:15px} #drawer .x{width:26px;height:26px}
+#drawer .dbody{padding:12px 12px 20px;gap:14px}
+#drawer .step{padding:7px 8px} #drawer .step .v{font-size:15px} #drawer .step .d{font-size:9.5px} #drawer .step .l{font-size:9px}
+#drawer .fact{padding:5px 7px} #drawer .fact .v{font-size:12px}
+#drawer .bar{grid-template-columns:104px 1fr 38px;font-size:12px}
+#drawer .kv{grid-template-columns:118px 1fr;font-size:11.5px}
+#drawer textarea.letter{min-height:170px;font-size:11.5px}
+#drawer .sv{min-height:90px}
+.leaflet-container{font-family:var(--body);background:#0b0f12}
+.leaflet-tooltip.tip{background:#0e1317;color:#dce3e9;border:1px solid #2b3842;border-radius:2px;box-shadow:0 4px 14px rgba(0,0,0,.5);font-family:var(--mono);font-size:11.5px;padding:6px 8px;line-height:1.5}
+.leaflet-tooltip.tip::before{display:none}
+.leaflet-bar a{background:#0e1317;color:#dce3e9;border-color:#2b3842} .leaflet-bar a:hover{background:#131a20;color:#f0a020}
+.leaflet-control-attribution{background:rgba(8,11,14,.7)!important;color:#5f6e7a;font-size:9.5px} .leaflet-control-attribution a{color:#93a1ad}
+.sv{width:100%;display:block;border:1px solid var(--hair2);margin-bottom:8px;min-height:120px;background:var(--bg)}
+@media (max-width:800px){.wrap{top:auto;height:52vh;width:auto;right:10px} .mapctl{left:10px;max-width:calc(100vw - 20px)} body.dopen .leaflet-right{right:0}}
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+</head>
+<body>
+<div id="map" aria-label="Map of lots"></div>
+<div class="mapctl">
+  <button class="btn" id="btnSide" title="Show or hide the list">◀ List</button>
+  <div class="seg" id="segBase" role="group" aria-label="Map style"></div>
+  <div class="legend"><span><i style="background:#27c07d"></i>Prime</span><span><i style="background:#4aa8ff"></i>Strong</span><span><i style="background:#f0a020"></i>Maybe</span><span><i style="background:#8c98a3"></i>Pass</span><span><i style="border:2px solid #f0524f;width:6px;height:6px"></i>Tax lien</span></div>
+</div>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1><b>JEL</b>Jake Effective Land</h1>
+      <span class="sub">VACANT RM-1 / RM-2 · 19104 · 19146 · 19125 · SOURCE OPA</span>
+    </div>
+    <div class="actions">
+      <button class="btn" id="btnCall">Call desk</button>
+      <button class="btn" id="btnEmail">Email queue</button>
+      <button class="btn" id="btnSettings">Assumptions</button>
+      <button class="btn primary" id="btnExport">Export</button>
+    </div>
+  </header>
+
+  <section class="stats" id="stats"></section>
+
+  <section class="glass controls">
+    <input class="search" id="q" type="search" placeholder="Search address, owner or OPA number" aria-label="Search">
+    <div class="seg" id="segZip" role="group" aria-label="Zip code"></div>
+    <div class="seg" id="segTier" role="group" aria-label="Tier"></div>
+    <label class="chk"><input type="checkbox" id="fPrivate" checked> Private owners only</label>
+    <label class="chk"><input type="checkbox" id="fFour"> 4 units only</label>
+    <label class="chk"><input type="checkbox" id="fTel"> Has phone / email</label>
+    <label class="chk"><input type="checkbox" id="fView"> Only lots in map view</label>
+    <span class="kbd"><kbd>/</kbd> search <kbd>↑</kbd><kbd>↓</kbd> move <kbd>Enter</kbd> open <kbd>Esc</kbd> close</span>
+  </section>
+
+  <section class="glass list">
+    <div class="head" id="head"></div>
+    <div id="rows"></div>
+  </section>
+
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer glass" id="drawer" aria-hidden="true" role="dialog" aria-label="Parcel detail"></aside>
+<aside class="drawer glass wide" id="emailq" aria-hidden="true" role="dialog" aria-label="Email queue"></aside>
+<div class="desk" id="desk" role="dialog" aria-label="Call desk"></div>
+<aside class="drawer glass" id="settings" aria-hidden="true" role="dialog" aria-label="Assumptions"></aside>
+<div class="toast" id="toast"></div>
+
+<script src="score.js"></script>
+<script>
+let P=[];
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=n=>n==null?'—':'$'+Math.round(n).toLocaleString('en-US');
+const sf=n=>n==null?'—':Math.round(n).toLocaleString('en-US')+' sf';
+const ft=n=>n==null?'—':(+n.toFixed(1))+' ft';
+function load(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+let S=Object.assign({},DEFAULTS,load('jel.settings',{}));
+let ST=load('jel.state',{});
+const F={q:'',zip:'All',tier:'All',priv:true,four:false,tel:false,inview:false,sort:'score',dir:-1};
+let SEL=0,VIEW=[];
+const edge=(p,r)=>p.mv>0&&r.units?(r.walk-p.mv)/p.mv:null;
+const COLS=[['score','Score',''],['target','Target',''],['edge','Edge',''],['units','Units',''],['area','Lot',''],['mv','Ask',''],['addr','Address','']];
+let R=new Map();
+function rescore(){R=new Map();for(const p of P)R.set(p.id,scoreParcel(p,ST[p.id],S));}
+const TIER_NAME={A:'Prime',B:'Strong',C:'Maybe',D:'Pass',P:'Public'};
+const STATUS={'':'Not contacted',queued:'Queued',emailed:'Emailed',sent:'Letter sent',called:'Called, no answer',voicemail:'Left voicemail',callback:'Call back',interested:'Interested',replied:'Replied',dead:'Not interested',wrong:'Wrong number',dnc:'Do not contact'};
+const CLOSED=['dead','wrong','dnc'];
+let SERVER=null;   // set when the page is served by server.py: shared state and email sending
+async function api(path,body){const r=await fetch(path,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:undefined);return r.json()}
+function setLot(ids,patch,log){ids=[].concat(ids);
+  for(const id of ids){const cur=Object.assign({},ST[id],patch);if(log)cur.log=(cur.log||[]).concat([Object.assign({t:new Date().toISOString().slice(0,16).replace('T',' ')},log)]);ST[id]=cur}
+  save('jel.state',ST);if(SERVER)api('/api/lot',{ids,patch,log}).catch(()=>toast('Could not save to the server'));}
+const tel=n=>'tel:+1'+String(n).replace(/\D/g,'').slice(-10);
+const suppressed=(kind,v)=>SERVER&&SERVER.suppress[kind].includes(kind==='phones'?String(v).replace(/\D/g,'').slice(-10):String(v).toLowerCase());
+function phonesOf(p){if(!p.contacts)return[];const M={jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+  return p.contacts.phones.filter(h=>!suppressed('phones',h.number)).map(h=>{const m=/([A-Za-z]{3})[a-z]*\s+(\d{4})/.exec(h.last_seen||'');return Object.assign({},h,{when:m?(+m[2])*12+(M[m[1].toLowerCase()]||0):0})}).sort((a,b)=>b.when-a.when);}
+const emailOf=p=>p.contacts?(p.contacts.emails||[]).find(m=>!suppressed('emails',m)):null;
+const sameOwner=p=>P.filter(x=>x.owner===p.owner&&x.mzip===p.mzip).map(x=>x.id);
+
+let MAP=null,NOVIEW=false;
+function filtered(){
+  const q=F.q.trim().toLowerCase();
+  let a=P.filter(p=>{
+    const r=R.get(p.id);
+    if(F.zip!=='All'&&p.zip!==F.zip)return false;
+    if(F.priv&&p.pub)return false;
+    if(F.tier!=='All'&&r.tier!==F.tier)return false;
+    if(F.four&&r.units!==4)return false;
+    if(F.tel&&!p.contacts)return false;
+    if(q&&!(p.addr.toLowerCase().includes(q)||p.owner.toLowerCase().includes(q)||p.id.includes(q)||(p.contacts&&JSON.stringify(p.contacts).toLowerCase().includes(q))))return false;
+    if(F.inview&&!NOVIEW&&MAP&&p.lat&&!MAP.getBounds().contains([p.lat,p.lng]))return false;
+    return true;
+  });
+  const key={score:p=>R.get(p.id).score,target:p=>R.get(p.id).target,open:p=>R.get(p.id).open,units:p=>R.get(p.id).units,edge:p=>{const e=edge(p,R.get(p.id));return e==null?-9:e},area:p=>p.area||0,mv:p=>p.mv||0,fr:p=>p.fr||0}[F.sort];
+  if(F.sort==='addr')a.sort((x,y)=>F.dir*x.addr.localeCompare(y.addr,undefined,{numeric:true}));
+  else if(F.sort==='zone')a.sort((x,y)=>F.dir*x.zone.localeCompare(y.zone));
+  else a.sort((x,y)=>F.dir*(key(x)-key(y)));
+  return a;
+}
+function seg(el,opts,cur,on){el.innerHTML=opts.map(o=>`<button type="button" aria-pressed="${o===cur}">${esc(o==='All'?'All':TIER_NAME[o]||o)}</button>`).join('');
+  [...el.children].forEach((b,i)=>b.onclick=()=>on(opts[i]));}
+function render(listOnly){
+  seg($('#segZip'),['All','19104','19146','19125'],F.zip,v=>{F.zip=v;render()});
+  seg($('#segTier'),['All','A','B','C','D'],F.tier,v=>{F.tier=v;render()});
+  const a=filtered();
+  const rs=a.map(p=>R.get(p.id));
+  const prime=rs.filter(r=>r.tier==='A').length, four=rs.filter(r=>r.units===4).length;
+  const t=rs.map(r=>r.target).filter(x=>x>0).sort((x,y)=>x-y);const med=t.length?t[Math.floor(t.length/2)]:null;
+  const openSum=rs.filter(r=>r.tier==='A').reduce((s,r)=>s+r.open,0);
+  const cnt={A:0,B:0,C:0,D:0};rs.forEach(r=>{if(cnt[r.tier]!=null)cnt[r.tier]++});const tot=Math.max(1,cnt.A+cnt.B+cnt.C+cnt.D);
+  const liens=rs.filter(r=>r.lien).length;
+  const M=n=>n>=1e6?'$'+(n/1e6).toFixed(2)+'M':money(n);
+  $('#stats').innerHTML=[
+    ['Lots',a.length.toLocaleString()+'<span class="muted" style="font-size:12px"> /'+P.length+'</span>',''],
+    ['Prime',prime,'up'],['4-unit',four,'am'],['Med target',money(med),''],['Open all prime',M(openSum),''],['Liens',liens,liens?'am':'']
+  ].map(x=>`<div class="stat"><div class="l">${x[0]}</div><div class="v ${x[2]}">${x[1]}</div></div>`).join('')+
+  `<div class="stat wide"><div class="l">Tier depth</div><div class="depth">${['A','B','C','D'].map(k=>`<i class="${k}" style="width:${cnt[k]/tot*100}%"></i>`).join('')}</div><div class="dl">${['A','B','C','D'].map(k=>`<span>${TIER_NAME[k]} ${cnt[k]}</span>`).join('')}</div></div>`;
+  $('#head').innerHTML='<span>Sort</span>'+COLS.map(c=>`<div class="${c[2]}">${c[0]?`<button type="button" data-sort="${c[0]}" class="${F.sort===c[0]?'on':''}">${c[1]}${F.sort===c[0]?(F.dir<0?' ▼':' ▲'):''}</button>`:c[1]}</div>`).join('');
+  VIEW=a;if(SEL>=a.length)SEL=0;if(SELID){const si=a.findIndex(p=>p.id===SELID);if(si>=0)SEL=si}
+  $('#rows').innerHTML=a.length?a.map((p,i)=>{const r=R.get(p.id),s=(ST[p.id]||{}).status||'',e=edge(p,r);
+    return `<button class="row${p.id===SELID?' sel':''}" data-id="${p.id}" data-i="${i}">
+      <div class="c-score"><span class="pill t-${r.tier}">${r.score}<small>${r.tier}</small></span></div>
+      <div class="c-main"><div class="l1"><span class="a1">${esc(p.addr)}</span>${r.tags.filter(t=>t!=='Public owner').slice(0,2).map(t=>`<span class="tag ${t==='Tax lien'?'lien':t==='Assemblage'?'asm':''}">${t==='Tax lien'?'Lien':t==='Assemblage'?'Asm':t==='Recent buyer'?'Recent':'Exempt'}</span>`).join('')}<span class="tgt num">${r.units?money(r.target):'—'}</span></div>
+        <div class="l2 num">${esc(p.zone.replace(/^RM/,'RM-'))} · ${p.area==null?'—':Math.round(p.area).toLocaleString()} sf · ${p.fr==null?'—':(+p.fr.toFixed(1))+"'"} · <span style="${r.units===4?'color:var(--accent);font-weight:700':''}">${r.units}u</span> · ask ${money(p.mv)} · <span class="${e==null?'muted':e>=0?'up':'dn'}">${e==null?'—':(e>=0?'+':'')+Math.round(e*100)+'%'}</span></div>
+        <div class="l3">${esc(p.name)}${p.contacts?` · <span class="num up">${esc((phonesOf(p)[0]||{}).number||emailOf(p)||'')}</span>`:''}</div></div>
+      <div class="c-dot"><span class="dot s-${s}" title="${STATUS[s]}"></span></div>
+    </button>`}).join(''):'<div class="empty">No lots match these filters. Clear the search or turn off a filter.</div>';
+  if(!listOnly)drawMap();
+}
+$('#rows').addEventListener('click',e=>{const b=e.target.closest('.row');if(b){setSel(+b.dataset.i);openParcel(b.dataset.id)}});
+$('#head').addEventListener('click',e=>{const b=e.target.closest('[data-sort]');if(!b)return;const k=b.dataset.sort;if(F.sort===k)F.dir*=-1;else{F.sort=k;F.dir=(k==='addr'||k==='zone')?1:-1}SEL=0;render()});
+function setSel(i){if(!VIEW.length)return;SEL=Math.max(0,Math.min(VIEW.length-1,i));SELID=VIEW[SEL].id;hilite();document.querySelectorAll('.row.sel').forEach(x=>x.classList.remove('sel'));const el=$('#rows').children[SEL];if(el){el.classList.add('sel');el.scrollIntoView({block:'nearest'})}}
+document.addEventListener('keydown',e=>{const typing=/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
+  if(e.key==='/'&&!typing){e.preventDefault();$('#q').focus();return}
+  if(typing||$('#desk').classList.contains('on')||$('#emailq').classList.contains('on'))return;const open=$('#drawer').classList.contains('on');
+  if(e.key==='ArrowDown'||e.key==='j'){e.preventDefault();setSel(SEL+1);if(open)openParcel(VIEW[SEL].id);else if(VIEW[SEL])focusMap(VIEW[SEL].id)}
+  else if(e.key==='ArrowUp'||e.key==='k'){e.preventDefault();setSel(SEL-1);if(open)openParcel(VIEW[SEL].id);else if(VIEW[SEL])focusMap(VIEW[SEL].id)}
+  else if(e.key==='Enter'&&VIEW[SEL]&&!$('#settings').classList.contains('on')){e.preventDefault();openParcel(VIEW[SEL].id)}});
+$('#q').oninput=e=>{F.q=e.target.value;render()};
+$('#fPrivate').onchange=e=>{F.priv=e.target.checked;render()};
+$('#fFour').onchange=e=>{F.four=e.target.checked;render()};
+$('#fView').onchange=e=>{F.inview=e.target.checked;SEL=0;render(true)};
+$('#fTel').onchange=e=>{F.tel=e.target.checked;SEL=0;render()};
+
+function letter(p,r){
+  const d=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+  const who=p.name+(p.name2?' and '+p.name2:'');
+  const lien=r.lien?' Any back taxes or liens owed to the City get paid off at closing out of the sale, so you walk away clear.':'';
+  return `${d}\n\n${who}\n${p.mail.join('\n')}\n${p.mcity}, ${p.mst} ${p.mzip}\n\nRe: ${p.addr}, Philadelphia, PA ${p.zip} (OPA ${p.id})\n\nDear ${p.ent?p.name:p.name.split(' ')[0]},\n\nI buy land in your lot's neighborhood and I would like to purchase ${p.addr}. I can offer ${money(r.open)} cash, as-is, with no agent commissions and no contingencies. I pay the closing costs and can settle in about 21 days through a licensed title company.${lien}\n\nIf that number is not right for you, tell me what is. I would rather have the conversation than not.\n\nCall or text ${S.phone||'[phone]'}${S.email?' or email '+S.email:''}.\n\n${S.sender||'[Your name]'}`;
+}
+function openParcel(id,keepMap){
+  if(!keepMap){SELID=id;const si=VIEW.findIndex(p=>p.id===id);if(si>=0){SEL=si;document.querySelectorAll('.row.sel').forEach(x=>x.classList.remove('sel'));const el=$('#rows').children[si];if(el){el.classList.add('sel');el.scrollIntoView({block:'nearest'})}}focusMap(id)}
+  const p=P.find(x=>x.id===id),r=R.get(id),st=ST[id]||{};
+  const recs=Object.entries(p.records||{});
+  const gq=encodeURIComponent(p.addr+', Philadelphia, PA '+p.zip);
+  const raw=[['OPA number',p.id],['Category',p.cat],['OPA description',p.bdesc],['Zoning',p.zone],['Lot size',sf(p.area)],['Frontage',ft(p.fr)],['Depth',ft(p.dp)],['Shape',({E:'Rectangular',A:'Irregular',B:'Grossly irregular',C:'Triangular'})[p.shape]||p.shape],['Topography code',p.topo||'—'],['View code',p.view||'—'],
+    ['Bedrooms',p.beds??'—'],['Bathrooms',p.baths??'—'],['Stories',p.stories??'—'],['Year built',p.yb||'—'],['Livable area',p.la?sf(p.la):'—'],
+    ['OPA market value',money(p.mv)],['Taxable land',money(p.tland)],['Exempt land',money(p.eland)],['Homestead exemption',money(p.hs)],['Assessment date',p.assessed||'—'],
+    ['Last sale price',money(p.sp)],['Last sale date',p.sd||'—'],['Recorded',p.rec||'—'],['Years held',p.hold??'—'],['Book and page',p.book||'—'],['Registry number',p.reg||'—'],['Beginning point',p.bp||'—'],
+    ['Census tract',p.tract],['Ward',p.ward],['PIN',p.pin],['Owner on record',p.owner+(p.owner2?' / '+p.owner2:'')],['Owner lots on this list',p.port]];
+  const d=$('#drawer');
+  d.innerHTML=`<div class="dhead"><div class="ring t-${r.tier}">${r.score}</div><div><h2>${esc(p.addr)}</h2><div class="sub" style="margin-top:4px">Philadelphia, PA ${p.zip} · ${TIER_NAME[r.tier]}${r.tags.length?' · '+r.tags.join(' · '):''}</div></div><button class="x" data-close aria-label="Close">×</button></div>
+  <div class="dbody">
+    ${p.lat?`<section><h3>Street view</h3>${S.gkey?`<a href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${p.lat},${p.lng}" target="_blank" rel="noopener"><img class="sv" alt="Street view of ${esc(p.addr)}" src="https://maps.googleapis.com/maps/api/streetview?size=640x320&fov=85&location=${gq}&key=${encodeURIComponent(S.gkey)}"></a>`:''}<div class="links"><a href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${p.lat},${p.lng}" target="_blank" rel="noopener">Open Street View</a><a href="#" id="dZoom">Zoom map to lot</a></div>${S.gkey?'':'<div class="note" style="margin-top:6px">To show the street photo right here, add a Google Maps key under Assumptions.</div>'}</section>`:''}
+    <section><h3>Bid ladder</h3>
+      ${r.units?`<div class="ladder"><div class="step"><div class="l">Open at</div><div class="v">${money(r.open)}</div><div class="d">${S.openPct}% of anchor</div></div><div class="step main"><div class="l">Target</div><div class="v">${money(r.target)}</div><div class="d">${money(r.walk-r.target)} under ceiling</div></div><div class="step"><div class="l">Ceiling</div><div class="v">${money(r.walk)}</div><div class="d">${r.units} × ${money(r.ppu)} per unit</div></div></div>`:`<div class="note">This lot is too small to carry a unit on its own, so there is no bid. It only matters as part of an assemblage.</div>`}
+      <label class="chk" style="margin-top:8px"><input type="checkbox" id="dLien" ${r.lien?'checked':''}> Tax lien on this lot (bid at ${money(S.lienPpu)} per unit)</label>
+    </section>
+    <section><h3>Key facts</h3><div class="facts">
+      ${[['Bed / bath','— (vacant land)'],['Stories','—'],['Zone',p.zone.replace(/^RM/,'RM-')],['Ask','Not listed'],['OPA value',money(p.mv)],['Lot size',sf(p.area)],['Frontage',ft(p.fr)],['Depth',ft(p.dp)],['By-right units',r.units]].map(f=>`<div class="fact"><div class="l">${f[0]}</div><div class="v">${esc(f[1])}</div></div>`).join('')}</div>
+      ${p.notes.length?`<div class="note" style="margin-top:8px">${esc(p.notes.join('. '))}.</div>`:''}
+    </section>
+    <section><h3>Why it scored ${r.score}</h3>${r.why.map(w=>`<div class="bar"><div>${w.k}</div><div class="track"><div class="fill" style="width:${w.pts/w.max*100}%"></div></div><div class="num r" style="text-align:right">${w.pts}/${w.max}</div><div class="why">${esc(w.t)}</div></div>`).join('')}
+      ${p.pub?'<div class="note">Publicly owned. Score is capped because these go through the Land Bank or an RFP, not a mailed offer.</div>':p.exempt?'<div class="note">Tax-exempt owner (church or nonprofit). Sales need board approval, so 10 points come off.</div>':''}</section>
+    <section><h3>Owner and mailing address</h3><div class="box"><div style="font-weight:600">${esc(p.name)}${p.name2?' and '+esc(p.name2):''}</div><div>${p.mail.map(esc).join('<br>')}<br>${esc(p.mcity)}, ${esc(p.mst)} ${esc(p.mzip)}</div><div class="note" style="margin-top:6px">${p.ent?'Entity':'Individual'} · ${p.oos?'out of state':p.ooc?'outside Philadelphia':'Philadelphia mailing address'}${p.port>1?' · owns '+p.port+' lots on this list':''}.${p.contacts?'':' Phone and email are not in city records.'}</div>
+</div></section>
+    <section><h3>Phones and email</h3>${p.contacts?`<div class="box"><div class="note" style="margin-bottom:6px">Found ${esc(p.contacts.found_name||'')} · name match: <span class="${p.contacts.match==='matched'?'up':'dn'}">${esc(p.contacts.match)}</span> · traced ${esc(p.contacts.traced||'')}</div>
+      ${phonesOf(p).map(h=>`<div class="rowf" style="padding:3px 0"><span class="num" style="font-size:15px;font-weight:600;min-width:140px">${esc(h.number)}</span><span class="muted" style="flex:1">${esc(h.type)}${h.last_seen?' · '+esc(h.last_seen.replace(/^Last reported /,'seen ')):''}</span><a class="btn sm g" href="${tel(h.number)}" style="text-decoration:none">Dial</a><button class="btn sm" data-copy="${esc(h.number)}">Copy</button></div>`).join('')}
+      ${p.contacts.emails.map(m=>`<div class="rowf" style="padding:3px 0"><span class="num" style="font-size:14px;flex:1">${esc(m)}</span><button class="btn sm" data-copy="${esc(m)}">Copy</button></div>`).join('')}</div>`
+      :`<div class="note">${p.pub?'Public owner, not traced.':'Not skip traced yet. Run <span class="num">python -m pipeline.skiptrace</span> and refresh this page.'}</div>`}</section>
+    ${recs.length?`<section><h3>City records</h3>${recs.map(([k,v])=>`<div class="box" style="margin-bottom:6px"><div style="font-weight:600;margin-bottom:4px;text-transform:capitalize">${esc(k)}</div><dl class="kv">${Object.entries(v).map(([a,b])=>`<dt>${esc(a)}</dt><dd>${esc(typeof b==='number'&&/owed|principal/i.test(a)?money(b):b===true?'Yes':b)}</dd>`).join('')}</dl></div>`).join('')}</section>`:''}
+    ${p.adj.length?`<section><h3>Next-door lots on this list</h3><div class="links">${p.adj.map(a=>`<a href="#" data-go="${a.id}">${esc(a.addr)}${a.same?' (same owner)':''}</a>`).join('')}</div></section>`:''}
+    <section><h3>Outreach</h3>
+      <div class="rowf" style="margin-bottom:8px"><label class="field">Status<select id="dStatus">${Object.entries(STATUS).map(([k,v])=>`<option value="${k}" ${k===(st.status||'')?'selected':''}>${v}</option>`).join('')}</select></label><button class="btn sm" id="dCopy" style="margin-top:18px">Copy letter</button></div>
+      <textarea class="letter" id="dLetter" aria-label="Offer letter">${esc(letter(p,r))}</textarea>
+    </section>
+    ${(st.log||[]).length?`<section><h3>Activity</h3><div class="logl">${st.log.slice().reverse().map(l=>`<div>${esc(l.t)} · ${esc(l.detail||l.type)}</div>`).join('')}</div></section>`:''}
+    <section><h3>Look it up</h3><div class="links"><a href="https://www.google.com/maps/search/?api=1&query=${gq}" target="_blank" rel="noopener">Map and Street View</a><a href="https://atlas.phila.gov/${encodeURIComponent(p.addr)}" target="_blank" rel="noopener">City Atlas (liens, permits, deeds)</a><a href="https://property.phila.gov/?p=${p.id}" target="_blank" rel="noopener">OPA record</a>${p.ent&&!p.pub?'<a href="https://file.dos.pa.gov/search/business" target="_blank" rel="noopener">PA business search</a>':''}</div></section>
+    <section><h3>Full record</h3><dl class="kv">${raw.map(x=>`<dt>${x[0]}</dt><dd>${esc(x[1])}</dd>`).join('')}</dl></section>
+  </div>`;
+  d.querySelector('#dLien').onchange=e=>{setLot(id,{lien:e.target.checked});rescore();render();openParcel(id,true)};
+  d.querySelector('#dStatus').onchange=e=>{setLot(id,{status:e.target.value},{type:'status',detail:STATUS[e.target.value]});render();openParcel(id,true)};
+  d.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>copy(b.dataset.copy,'Copied '+b.dataset.copy));
+  const dz=d.querySelector('#dZoom');if(dz)dz.onclick=e=>{e.preventDefault();focusMap(id,true)};
+  d.querySelector('#dCopy').onclick=()=>copy(d.querySelector('#dLetter').value,'Letter copied');
+  d.querySelectorAll('[data-go]').forEach(a=>a.onclick=e=>{e.preventDefault();openParcel(a.dataset.go)});
+  show(d);
+}
+function openSettings(){
+  const d=$('#settings');
+  d.innerHTML=`<div class="dhead"><div><h2>Assumptions</h2><div class="sub" style="margin-top:4px">Change a number and every score and bid updates.</div></div><button class="x" data-close aria-label="Close">×</button></div>
+  <div class="dbody">
+    <section><h3>Jake's numbers</h3><div class="grid2">
+      <label class="field">Price per unit ($)<input id="sPpu" type="number" step="500" value="${S.ppu}"></label>
+      <label class="field">Price per unit with tax lien ($)<input id="sLien" type="number" step="500" value="${S.lienPpu}"></label>
+      <label class="field">Opening offer (% of anchor)<input id="sOpen" type="number" min="30" max="100" value="${S.openPct}"></label>
+      <label class="field">Unit count rule<select id="sRule"><option value="base" ${S.rule==='base'?'selected':''}>RM-1 base code</option><option value="overlay" ${S.rule==='overlay'?'selected':''}>Conservative (overlay caps)</option></select></label></div>
+      <p class="note">Units by right. Base code: one unit per 360 sf for the first 1,440 sf of lot, then one per 480 sf, so a 1,440 sf lot is a fourplex. Conservative: 2 units under 1,440 sf, 3 units up to 1,919 sf, then one per 480 sf, which is how some council-district overlays read. Check the overlay on any lot before you sign.</p>
+      <p class="note">Bids. Ceiling is units × price per unit, and you never go above it. The anchor is the lower of the ceiling and the OPA value. You open at the opening percent of the anchor and aim for the anchor itself, or 90% of ceiling when the OPA value is higher than the ceiling.</p>
+      <p class="note">Score, out of 100. Unit fit 30 (4 units scores full). Price reach 30 (how close your ceiling gets to the OPA value). Seller likelihood 30 (years held, individual owner, absentee, nominal last transfer, tax lien; minus 12 if they bought recently for more than your ceiling). Buildability 10 (frontage 16 ft and up, rectangular). Up to 4 bonus for a next-door lot. Public owners are capped at 20.</p>
+    </section>
+    <section><h3>Your details for letters</h3><div class="grid2">
+      <label class="field">Name or company<input id="sSender" value="${esc(S.sender)}"></label>
+      <label class="field">Phone<input id="sPhone" value="${esc(S.phone)}"></label>
+      <label class="field">Email<input id="sEmail" value="${esc(S.email)}"></label></div>
+    </section>
+    <section><h3>Street photos</h3><label class="field">Google Maps API key (optional)<input id="sGkey" value="${esc(S.gkey||'')}" placeholder="Needs the Street View Static API enabled"></label>
+      <p class="note">With a key, each lot's detail page shows a street-level photo. Without one you still get the satellite map and a one-click link to Street View. The key is stored only in this browser.</p>
+    </section>
+    <div class="rowf"><button class="btn primary" id="sSave">Apply</button><button class="btn" id="sReset">Reset to defaults</button></div>
+  </div>`;
+  d.querySelector('#sSave').onclick=()=>{S={ppu:+$('#sPpu').value||DEFAULTS.ppu,lienPpu:+$('#sLien').value||DEFAULTS.lienPpu,openPct:Math.max(30,Math.min(100,+$('#sOpen').value||70)),rule:$('#sRule').value,sender:$('#sSender').value.trim(),phone:$('#sPhone').value.trim(),email:$('#sEmail').value.trim(),gkey:$('#sGkey').value.trim()};save('jel.settings',S);rescore();render();hide();toast('Assumptions applied')};
+  d.querySelector('#sReset').onclick=()=>{S=Object.assign({},DEFAULTS,{sender:S.sender,phone:S.phone,email:S.email,gkey:S.gkey});save('jel.settings',S);rescore();render();openSettings()};
+  show(d);
+}
+function show(d){hide(true);d.classList.add('on');d.setAttribute('aria-hidden','false');$('#scrim').classList.toggle('on',d.id!=='drawer');document.body.classList.toggle('dopen',d.id==='drawer');d.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>hide());const b=d.querySelector('.dbody');if(b)b.scrollTop=0;}
+function hide(keep){document.body.classList.remove('dopen');document.querySelectorAll('.drawer').forEach(d=>{d.classList.remove('on');d.setAttribute('aria-hidden','true')});if(!keep)$('#scrim').classList.remove('on');}
+// ---------- map
+let OUT={},SELID=null,SHAPES=new Map(),GP=null,GD=null,BASE='hybrid',TILES={};
+const TCOL={A:'#27c07d',B:'#4aa8ff',C:'#f0a020',D:'#8c98a3',P:'#5f6e7a'};
+function initMap(){
+  if(!window.L){$('#map').innerHTML='<div class="empty" style="padding-left:460px">The map library could not load. Check your internet connection and reload.</div>';return}
+  MAP=L.map('map',{zoomControl:false,preferCanvas:true,maxZoom:21,zoomSnap:.5}).setView([39.957,-75.19],14);
+  L.control.zoom({position:'bottomright'}).addTo(MAP);L.control.scale({position:'bottomright',metric:false}).addTo(MAP);
+  const esri='https://server.arcgisonline.com/ArcGIS/rest/services/';
+  TILES={sat:L.tileLayer(esri+'World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxNativeZoom:19,maxZoom:21,attribution:'Imagery &copy; Esri, Maxar, Earthstar Geographics'}),
+    lab:L.layerGroup([L.tileLayer(esri+'Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}',{maxNativeZoom:19,maxZoom:21,opacity:.8}),L.tileLayer(esri+'Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{maxNativeZoom:19,maxZoom:21})]),
+    str:L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxNativeZoom:20,maxZoom:21,subdomains:'abcd',attribution:'&copy; OpenStreetMap contributors &copy; CARTO'})};
+  GD=L.layerGroup();GP=L.layerGroup();setBase(BASE);
+  MAP.on('zoomend',layerSwap);MAP.on('moveend',()=>{if(F.inview)render(true)});
+}
+function setBase(b){BASE=b;if(!MAP)return;Object.values(TILES).forEach(l=>MAP.removeLayer(l));
+  if(b==='streets')TILES.str.addTo(MAP);else{TILES.sat.addTo(MAP);if(b==='hybrid')TILES.lab.addTo(MAP)}
+  seg($('#segBase'),['Hybrid','Satellite','Streets'],b[0].toUpperCase()+b.slice(1),v=>setBase(v.toLowerCase()));}
+function layerSwap(){if(!MAP)return;const close=MAP.getZoom()>=17;
+  if(close){MAP.removeLayer(GD);GP.addTo(MAP)}else{MAP.removeLayer(GP);GD.addTo(MAP)}}
+function shapeStyle(p,r,sel){const c=TCOL[r.tier]||TCOL.D;return {color:sel?'#ffffff':r.lien?'#f0524f':c,weight:sel?3.5:r.lien?2.5:1.5,fillColor:c,fillOpacity:sel?.55:.38,opacity:1}}
+function drawMap(fit){if(!MAP)return;GP.clearLayers();GD.clearLayers();SHAPES.clear();const pts=[];
+  NOVIEW=true;const set=filtered();NOVIEW=false;
+  for(const p of set){if(!p.lat&&!OUT[p.id])continue;const r=R.get(p.id),st=shapeStyle(p,r,false),e=edge(p,r);
+    const tip=`<b>${esc(p.addr)}</b> · ${r.score} ${TIER_NAME[r.tier]}<br>${r.units} units · target ${r.units?money(r.target):'—'} · ask ${money(p.mv)}${e==null?'':' · '+(e>=0?'+':'')+Math.round(e*100)+'%'}<br>${esc(p.name)}${r.lien?' · tax lien':''}`;
+    const mk=ly=>ly.bindTooltip(tip,{sticky:true,className:'tip',direction:'top',offset:[0,-6]}).on('click',()=>openParcel(p.id));
+    const o={};
+    if(p.lat){o.dot=mk(L.circleMarker([p.lat,p.lng],Object.assign({radius:r.tier==='A'?6:4.5},st,{fillOpacity:.85,weight:r.lien?2:1})));GD.addLayer(o.dot);pts.push([p.lat,p.lng])}
+    if(OUT[p.id]){o.poly=mk(L.polygon(OUT[p.id],st));GP.addLayer(o.poly)}
+    else if(p.lat){o.poly=mk(L.circleMarker([p.lat,p.lng],Object.assign({radius:9},st,{dashArray:'3 3'})));GP.addLayer(o.poly)}
+    SHAPES.set(p.id,{o,p});}
+  layerSwap();hilite();
+  if(fit&&pts.length)MAP.fitBounds(L.latLngBounds(pts).pad(.04),{paddingTopLeft:[document.body.classList.contains('side-hid')?20:450,20],paddingBottomRight:[20,20]});}
+let HL=null;
+function hilite(){if(!MAP)return;
+  if(HL&&SHAPES.get(HL)){const s=SHAPES.get(HL),st=shapeStyle(s.p,R.get(HL),false);Object.values(s.o).forEach(l=>l.setStyle(st))}
+  HL=SELID;const s=SHAPES.get(SELID);if(!s)return;const st=shapeStyle(s.p,R.get(SELID),true);Object.values(s.o).forEach(l=>{l.setStyle(st);if(l.bringToFront&&MAP.hasLayer(l))l.bringToFront()});}
+function focusMap(id,force){if(!MAP)return;hilite();const p=P.find(x=>x.id===id);if(!p)return;
+  const pad={paddingTopLeft:[document.body.classList.contains('side-hid')?30:460,60],paddingBottomRight:[430,60],maxZoom:19.5,duration:.6};
+  if(OUT[id])MAP.flyToBounds(L.polygon(OUT[id]).getBounds(),pad);
+  else if(p.lat)MAP.flyToBounds(L.latLng(p.lat,p.lng).toBounds(60),pad);
+  setTimeout(hilite,700);}
+$('#btnSide').onclick=()=>{const h=document.body.classList.toggle('side-hid');$('#btnSide').textContent=h?'▶ List':'◀ List'};
+
+// ---------- call desk
+let DQ=[],DI=0,DUNV=false;
+function buildDesk(){const seen=new Set();DQ=[];
+  for(const p of filtered().slice().sort((a,b)=>R.get(b.id).score-R.get(a.id).score)){
+    if(p.pub||!p.contacts||!phonesOf(p).length)continue;if(!DUNV&&p.contacts.match!=='matched')continue;
+    if(CLOSED.includes((ST[p.id]||{}).status)||(ST[p.id]||{}).status==='interested')continue;
+    const k=p.owner+'|'+p.mzip;if(seen.has(k))continue;seen.add(k);if(R.get(p.id).units)DQ.push(p);}
+  DI=Math.min(DI,Math.max(0,DQ.length-1));}
+function points(p,r){const a=[];const tx=(p.records||{}).tax,vi=(p.records||{}).violations;
+  if(p.hold!=null)a.push('Owned about '+Math.round(p.hold)+' years'+(p.sp?', paid '+money(p.sp):''));
+  if(tx&&tx['Tax owed'])a.push('Owes the city '+money(tx['Tax owed'])+' in back taxes'+(tx['Years delinquent']?' over '+tx['Years delinquent']+' years':'')+'. Paid off at closing.');
+  if(vi&&vi['Open violations'])a.push(vi['Open violations']+' open code violations on the lot');
+  if(p.oos||p.ooc)a.push('Lives in '+p.mcity+', '+p.mst+': not local to the lot');
+  const others=sameOwner(p).length-1;if(others>0)a.push('Owns '+others+' other lot'+(others>1?'s':'')+' on the list. Ask about all of them.');
+  a.push('City values it at '+money(p.mv)+'. Lot is '+sf(p.area)+', '+ft(p.fr)+' frontage, '+r.units+' units by right.');return a;}
+function renderDesk(){const d=$('#desk');buildDesk();const p=DQ[DI];
+  const bar=`<div class="deskbar"><h2>Call desk</h2><span class="sub">${DQ.length} owners queued from the current filters, best score first</span><label class="chk"><input type="checkbox" id="kUnv" ${DUNV?'checked':''}> Include unverified names</label><button class="btn" id="kClose" style="margin-left:auto">Close</button></div>`;
+  if(!p){d.innerHTML=bar+'<div class="empty">No owners with a phone number in the current filters. Run the skip trace, widen the filters, or tick Include unverified names.</div>';wireDesk();return}
+  const r=R.get(p.id),ph=phonesOf(p),first=p.ent?p.contacts.found_name.split(' ')[0]:p.name.split(' ')[0];
+  d.innerHTML=bar+`<div class="deskgrid"><div class="dq">${DQ.map((q,i)=>`<button data-i="${i}" class="${i===DI?'cur':''}"><span class="pill t-${R.get(q.id).tier}">${R.get(q.id).score}</span><span class="q1">${esc(q.addr)}<br><span class="muted">${esc(q.name)}</span></span></button>`).join('')}</div>
+  <div class="dmain">
+    <div><div class="sub">${DI+1} of ${DQ.length} · ${esc(STATUS[(ST[p.id]||{}).status||''])}</div><h2>${esc(p.contacts.match==='matched'?p.name:p.contacts.found_name)}</h2>
+      <div class="note">${p.contacts.match==='matched'?'':`<span class="dn">Unverified: the skip trace found ${esc(p.contacts.found_name)}, owner on record is ${esc(p.name)}. </span>`}Lot: <b>${esc(p.addr)}</b>, ${p.zip} · <a href="#" id="kOpen" style="color:var(--mid)">open full record</a></div></div>
+    <div>${ph.map((h,i)=>`<div class="phone ${i?'old':''}"><a class="dial" href="${tel(h.number)}">${esc(h.number)}</a><span class="muted" style="flex:1">${esc(h.type)}${h.last_seen?' · '+esc(h.last_seen.replace(/^Last reported /,'seen ')):''}${i?'':' · most recent'}</span><button class="btn sm" data-copy="${esc(h.number)}">Copy</button><button class="btn sm r" data-bad="${esc(h.number)}">Bad number</button></div>`).join('')}</div>
+    <div class="ladder"><div class="step"><div class="l">Open at</div><div class="v">${money(r.open)}</div><div class="d">first number you say</div></div><div class="step main"><div class="l">Target</div><div class="v">${money(r.target)}</div><div class="d">where you want to land</div></div><div class="step"><div class="l">Ceiling</div><div class="v">${money(r.walk)}</div><div class="d">never above · ${r.units} × ${money(r.ppu)}${r.lien?' lien rate':''}</div></div></div>
+    <div class="script">Hi, is this ${esc(first)}? My name is ${esc(S.sender||'[your name]')}. I'm calling about the vacant lot at ${esc(p.addr)}. I buy land in that neighborhood and I'd like to make you a cash offer. Is the lot something you'd consider selling?<br><br>I can pay ${money(r.open)} cash, as-is. No agents, I cover the closing costs, and we settle through a title company in about three weeks.${r.lien?' Any back taxes get paid off out of the sale at closing.':''}</div>
+    <ul class="pts">${points(p,r).map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
+    <div><h3>Log the outcome and move to the next owner</h3><div class="outs">
+      <button class="btn" data-out="called">No answer</button><button class="btn" data-out="voicemail">Left voicemail</button><button class="btn g" data-out="callback">Call back</button><button class="btn g" data-out="interested">Interested</button>
+      <button class="btn r" data-out="dead">Not interested</button><button class="btn r" data-out="wrong">Wrong person</button><button class="btn r" data-out="dnc">Do not contact</button><button class="btn" data-out="skip">Skip</button></div>
+      <input class="search" id="kNote" placeholder="Note for the log (optional): counter-offer, best time to call back" style="margin-top:8px;width:100%"></div>
+    ${((ST[p.id]||{}).log||[]).length?`<div><h3>Activity</h3><div class="logl">${ST[p.id].log.slice().reverse().map(l=>`<div>${esc(l.t)} · ${esc(l.detail||l.type)}</div>`).join('')}</div></div>`:''}
+  </div></div>`;wireDesk();}
+function wireDesk(){const d=$('#desk');
+  d.querySelector('#kClose').onclick=()=>{d.classList.remove('on');render()};
+  d.querySelector('#kUnv').onchange=e=>{DUNV=e.target.checked;DI=0;renderDesk()};
+  d.querySelectorAll('.dq button').forEach(b=>b.onclick=()=>{DI=+b.dataset.i;renderDesk()});
+  d.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>copy(b.dataset.copy,'Copied '+b.dataset.copy));
+  const p=DQ[DI];if(!p)return;
+  d.querySelector('#kOpen').onclick=e=>{e.preventDefault();d.classList.remove('on');openParcel(p.id)};
+  d.querySelectorAll('[data-bad]').forEach(b=>b.onclick=async()=>{if(!SERVER){toast('Start the app with python server.py to keep a do-not-call list');return}
+    const j=await api('/api/suppress',{phone:b.dataset.bad});SERVER.suppress=j.suppress;setLot(p.id,{},{type:'call',detail:'Marked '+b.dataset.bad+' as a bad number'});renderDesk()});
+  d.querySelectorAll('[data-out]').forEach(b=>b.onclick=async()=>{const o=b.dataset.out,note=d.querySelector('#kNote').value.trim();
+    if(o!=='skip'){setLot(sameOwner(p),{status:o},{type:'call',detail:STATUS[o]+(note?': '+note:'')});
+      if(o==='dnc'&&SERVER){for(const h of p.contacts.phones)await api('/api/suppress',{phone:h.number});for(const m of p.contacts.emails||[]){const j=await api('/api/suppress',{email:m});SERVER.suppress=j.suppress}}}
+    if(o==='skip'||!CLOSED.concat('interested').includes(o))DI++;if(DI>=DQ.length)DI=0;renderDesk()});}
+$('#btnCall').onclick=()=>{DI=0;hide();$('#desk').classList.add('on');renderDesk()};
+
+// ---------- email queue
+function emailFor(p,r){const first=p.ent?(p.contacts.found_name||'').split(' ')[0]:p.name.split(' ')[0];const n=sameOwner(p).length-1;
+  return {subject:'Cash offer for your lot at '+p.addr,
+  body:`Hi ${first||'there'},\n\nMy name is ${S.sender||'[your name]'}. I buy land in Philadelphia and I'd like to buy your vacant lot at ${p.addr}.\n\nI can pay ${money(r.open)} cash, as-is. No agents or commissions, I cover the closing costs, and we can settle in about three weeks through a licensed title company.${r.lien?' Any back taxes owed to the City are paid off at closing out of the sale, so you walk away clear.':''}${n>0?'\n\nI see you own '+(n>1?n+' other lots':'another lot')+' nearby. I would be glad to make an offer on '+(n>1?'those':'that one')+' too.':''}\n\nIf that number is not right for you, tell me what is. Just reply to this email${S.phone?' or call or text me at '+S.phone:''}.\n\nThank you,\n${S.sender||'[your name]'}`};}
+let EUNV=false;
+function emailQueue(){const seen=new Set(),out=[];const sentTo=SERVER?SERVER.email.sent_to:[];
+  for(const p of filtered().slice().sort((a,b)=>R.get(b.id).score-R.get(a.id).score)){const m=emailOf(p),r=R.get(p.id);
+    if(p.pub||!m||!r.units)continue;if(!EUNV&&p.contacts.match!=='matched')continue;
+    if(CLOSED.includes((ST[p.id]||{}).status))continue;if(sentTo.includes(m.toLowerCase())||seen.has(m.toLowerCase()))continue;
+    const ok=p.owner+'|'+p.mzip;if(((ST[p.id]||{}).log||[]).some(l=>l.type==='email')||seen.has(ok))continue;seen.add(m.toLowerCase());seen.add(ok);out.push({p,r,to:m});}
+  return out;}
+function openEmail(){const d=$('#emailq'),q=emailQueue(),E=SERVER&&SERVER.email;
+  const left=E?Math.max(0,E.cap-E.sent_today):0;
+  d.innerHTML=`<div class="dhead"><div><h2>Email queue</h2><div class="sub" style="margin-top:2px">${q.length} owners with an email in the current filters, best score first</div></div><button class="x" data-close aria-label="Close">×</button></div>
+  <div class="dbody">
+    ${!SERVER?'<div class="box note"><b class="dn">Sending is off.</b> This page was opened without the app server. Stop the current server and start it with <span class="num">python server.py</span>, then reload.</div>'
+      :!E.ready?`<div class="box note"><b class="dn">Email is not set up.</b> Add these to your .env file (see .env.example), then restart <span class="num">python server.py</span>: <span class="num">${E.missing.join(', ')}</span></div>`
+      :`<div class="box note">Sending as <b>${esc(E.name)}</b> &lt;${esc(E.from)}&gt; · ${E.sent_today} sent today · ${left} left under the daily cap of ${E.cap}. Every email gets your postal address and an opt-out line added at the bottom.</div>`}
+    ${!S.sender?'<div class="box note"><b class="dn">Your name is blank.</b> Set it under Assumptions so the emails are signed.</div>':''}
+    <div class="rowf"><label class="chk"><input type="checkbox" id="eUnv" ${EUNV?'checked':''}> Include unverified names</label><button class="btn sm" id="eAll">Select all</button><button class="btn sm" id="eNone">Select none</button>
+      <span style="flex:1"></span><button class="btn" id="eTest" ${E&&E.ready?'':'disabled'}>Send a test to myself</button><button class="btn primary" id="eSend" ${E&&E.ready&&S.sender?'':'disabled'}>Send selected</button></div>
+    <section><h3>Recipients</h3>${q.length?q.map((x,i)=>`<label class="eq"><input type="checkbox" class="eSel" data-i="${i}" ${i<left?'checked':''}><span><b>${esc(x.p.addr)}</b> <span class="muted">${esc(x.p.contacts.match==='matched'?x.p.name:x.p.contacts.found_name+' (unverified)')}</span></span><span class="num">${esc(x.to)}</span><span class="num r" style="text-align:right">${money(x.r.open)}</span></label>`).join(''):'<div class="note">Nobody to email. Owners already emailed, marked not interested, or without a matched email are left out.</div>'}</section>
+    ${q.length?`<section><h3>Preview: ${esc(q[0].p.addr)}</h3><pre class="prev">Subject: ${esc(emailFor(q[0].p,q[0].r).subject)}\n\n${esc(emailFor(q[0].p,q[0].r).body)}</pre></section>`:''}
+    <section><h3>Send log</h3><div class="logl" id="eLog">Nothing sent in this session.</div></section>
+  </div>`;
+  const log=m=>{const l=d.querySelector('#eLog');if(l.textContent.startsWith('Nothing'))l.textContent='';l.insertAdjacentHTML('afterbegin','<div>'+esc(m)+'</div>')};
+  d.querySelector('#eUnv').onchange=e=>{EUNV=e.target.checked;openEmail()};
+  d.querySelector('#eAll').onclick=()=>d.querySelectorAll('.eSel').forEach(c=>c.checked=true);
+  d.querySelector('#eNone').onclick=()=>d.querySelectorAll('.eSel').forEach(c=>c.checked=false);
+  d.querySelector('#eTest').onclick=async()=>{if(!q.length){toast('No recipient to preview');return}const m=emailFor(q[0].p,q[0].r);const j=await api('/api/email',{test:true,subject:'[TEST] '+m.subject,body:m.body});log(j.ok?'Test sent to '+j.to:'Test failed: '+j.error)};
+  d.querySelector('#eSend').onclick=async e=>{const pick=[...d.querySelectorAll('.eSel:checked')].map(c=>q[+c.dataset.i]);if(!pick.length){toast('Nothing selected');return}
+    e.target.disabled=true;let ok=0;
+    for(const x of pick){const m=emailFor(x.p,x.r),ids=sameOwner(x.p);const j=await api('/api/email',{ids,to:x.to,subject:m.subject,body:m.body}).catch(er=>({ok:false,error:String(er)}));
+      if(j.ok){ok++;log('Sent: '+x.p.addr+' → '+x.to)}else{log('Not sent: '+x.p.addr+' → '+x.to+' ('+j.error+')');if(/cap|not set up/i.test(j.error))break}
+      await new Promise(r=>setTimeout(r,1500));}
+    await syncServer();render();toast(ok+' of '+pick.length+' emails sent');openEmail();};
+  show(d);}
+$('#btnEmail').onclick=openEmail;
+async function syncServer(){try{const j=await api('/api/state');if(j&&j.server){SERVER=j;for(const[id,v]of Object.entries(j.lots))ST[id]=Object.assign({},ST[id],v);rescore()}}catch(e){SERVER=null}}
+
+$('#scrim').onclick=()=>hide();
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){hide();$('#desk').classList.remove('on')}});
+$('#btnSettings').onclick=openSettings;
+let tt;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2200)}
+async function copy(text,msg){try{await navigator.clipboard.writeText(text);toast(msg)}catch(e){toast('Copy was blocked. Select the text and copy it by hand.')}}
+
+function csv(){
+  const cols=['opa','address','zip','zone','lot_sf','frontage_ft','units','score','tier','tax_lien','opa_value','open_offer','target_bid','walk_away','owner_record','mail_name','mail_line1','mail_line2','mail_city','mail_state','mail_zip','phone_1','phone_1_type','phone_2','phone_3','email_1','email_2','contact_match','status','letter'];
+  const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  const lines=[cols.join(',')];
+  for(const p of filtered()){const r=R.get(p.id);if(!r.units)continue;
+    lines.push([p.id,p.addr,p.zip,p.zone,p.area,p.fr,r.units,r.score,r.tier,r.lien?'Y':'',p.mv,r.open,r.target,r.walk,p.owner,p.name+(p.name2?' and '+p.name2:''),p.mail[0]||'',p.mail.slice(1).join(', '),p.mcity,p.mst,p.mzip,...(c=>[c.phones[0]?.number,c.phones[0]?.type,c.phones[1]?.number,c.phones[2]?.number,c.emails[0],c.emails[1],c.match])(p.contacts||{phones:[],emails:[]}),STATUS[(ST[p.id]||{}).status||''],letter(p,r)].map(q).join(','));}
+  return {text:lines.join('\r\n'),n:lines.length-1};
+}
+
+$('#btnExport').onclick=async()=>{
+  const c=csv();if(!c.n){toast('Nothing to export with these filters');return}
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c.text],{type:'text/csv'}));a.download='jake-land-outreach-'+new Date().toISOString().slice(0,10)+'.csv';a.click();URL.revokeObjectURL(a.href);toast(c.n+' lots exported');
+};
+fetch('data/parcels.json').then(r=>r.json()).then(async d=>{P=d;OUT=await fetch('data/outlines.json').then(r=>r.ok?r.json():{}).catch(()=>({}));await syncServer();rescore();initMap();render(true);drawMap(true)}).catch(()=>{$('#rows').innerHTML='<div class="empty">Could not load data/parcels.json. Start the app with: python server.py</div>'});
+</script>
+</body>
+</html>

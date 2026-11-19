@@ -1,0 +1,11 @@
+__pycache__/
+.venv/
+data/snapshots/
+data/raw/
+*.xlsx
+!data/Jake_effective_land_clean.xlsx
+.DS_Store
+.env
+data/contacts.json
+data/skiptrace_debug.json
+data/outreach.json

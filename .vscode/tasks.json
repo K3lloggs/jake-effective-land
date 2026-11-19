@@ -1,0 +1,36 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Probe sources",
+      "type": "shell",
+      "command": "python -m pipeline.probe",
+      "problemMatcher": []
+    },
+    {
+      "label": "Refresh data",
+      "type": "shell",
+      "command": "python -m pipeline.run",
+      "problemMatcher": []
+    },
+    {
+      "label": "Serve app",
+      "type": "shell",
+      "command": "python server.py",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Export scored CSV",
+      "type": "shell",
+      "command": "node scripts/score_cli.js > data/scored.csv",
+      "problemMatcher": []
+    },
+    {
+      "label": "Contacts report",
+      "type": "shell",
+      "command": "python -m pipeline.contacts_report",
+      "problemMatcher": []
+    }
+  ]
+}
