@@ -123,6 +123,9 @@ Each lot's detail panel has a **Buyers** tab listing the five builders most like
   and outcome buttons. Outcomes are logged on the lot. The current builders file has no phones or emails, so the
   sheet links out to look the number up; when phones are added to the file, dial buttons appear.
 - Works on the static Vercel site as well as with `server.py`.
+- Phones and emails for builders: `python -m pipeline.skiptrace_buyers` (start with `--dry-run`, then `--top 20`).
+  It looks each named person up at the builder's registered address, then by name and city, and writes the results
+  into `web/data/builders.json`. After replacing that file with a new export, run it with `--merge-only`.
 
 ## Outreach: email queue and call desk
 

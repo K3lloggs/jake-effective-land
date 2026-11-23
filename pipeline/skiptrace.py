@@ -94,7 +94,7 @@ def trace_batch(tok, queries, owners, cache, debug):
     hit = set()
     for it in items:
         ig = norm(it.get("Input Given"))
-        k = (full.get(ig) or addr.get(ig) or addr.get(ig.split(" | ")[0]) or names.get(norm(it.get("Target Name")))
+        k = (full.get(ig) or names.get(norm(it.get("Target Name"))) or addr.get(ig) or addr.get(ig.split(" | ")[0])
              or next((v for q, v in addr.items() if ig and (q.startswith(ig) or ig.startswith(q))), None))
         if not k:
             debug.append({f: it.get(f) for f in ("Search Option", "Input Given", "Target Name", "Name Match")} | {"fields": sorted(it)[:60]})
