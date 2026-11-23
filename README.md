@@ -109,6 +109,21 @@ to fly to it and open its detail page. Zoomed out, lots are dots; from zoom 17 i
 - Street-level photos: every detail page links to Google Street View. To show the photo inside the detail page,
   add a Google Maps API key (Street View Static API enabled) under Assumptions.
 
+## Buyers (who to sell a lot to)
+
+Each lot's detail panel has a **Buyers** tab listing the five builders most likely to buy it.
+
+- Data: `web/data/builders.json` (ranked builders with score components, LLC names, people, contacts) and
+  `web/data/projects.geojson` (their project points, keyed by `builder_id`). Replace both files to refresh.
+- Matching is in `web/buyers.js`: `match = score × (0.5 + 0.5 × min(nearby, 5) / 5)`, where `nearby` is the
+  builder's projects within 0.75 mi of the lot. Top 5 by match, each with a one-line reason.
+- Hover a builder to see its projects on the map (bright = within 0.75 mi, dashed ring = the 0.75 mi radius).
+  Tap for score components, track record, nearby projects and who to reach.
+- **Call** opens the call desk with a buyer call sheet: script, their median land price next to your target bid,
+  and outcome buttons. Outcomes are logged on the lot. The current builders file has no phones or emails, so the
+  sheet links out to look the number up; when phones are added to the file, dial buttons appear.
+- Works on the static Vercel site as well as with `server.py`.
+
 ## Outreach: email queue and call desk
 
 Start the app with `python server.py` (not `http.server`) and open http://localhost:8000.

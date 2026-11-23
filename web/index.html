@@ -207,6 +207,23 @@ body.dopen .leaflet-right{right:415px}
 .sv{width:100%;display:block;border:1px solid var(--hair2);margin-bottom:8px;min-height:120px;background:var(--bg)}
 @media (max-width:800px){.wrap{top:auto;height:52vh;width:auto;right:10px} .mapctl{left:10px;max-width:calc(100vw - 20px)} body.dopen .leaflet-right{right:0}}
 </style>
+<style>
+/* ---------- Buyers tab ---------- */
+.tabs{display:flex;border-bottom:1px solid var(--hair2);background:var(--panel2)}
+.tabs button{all:unset;cursor:pointer;flex:1;text-align:center;padding:7px 0;font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);border-bottom:2px solid transparent}
+.tabs button:hover{color:var(--ink)} .tabs button[aria-selected="true"]{color:var(--buy);border-bottom-color:var(--buy)}
+:root{--buy:#c79bff;--buy-bg:rgba(199,155,255,.13)}
+.by{border:1px solid var(--hair);background:var(--bg);border-radius:3px;margin-bottom:6px}
+.by:hover,.by.open{border-color:var(--buy)}
+.byh{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:10px;align-items:center;width:100%;padding:9px 10px}
+.bym{font-family:var(--mono);font-weight:700;font-size:14px;color:var(--buy);background:var(--buy-bg);border-radius:2px;text-align:center;padding:5px 0}
+.byn{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.byr{font-size:11.5px;color:var(--ink2);line-height:1.35;margin-top:1px}
+.byd{display:none;padding:2px 10px 12px;border-top:1px solid var(--hair)} .by.open .byd{display:block}
+.byd h4{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin:12px 0 5px;font-weight:600}
+.byd .bar{grid-template-columns:84px 1fr 62px;font-size:11.5px;padding:2px 0} .byd .bar .fill{background:var(--buy)}
+.btn.buy{border-color:var(--buy);color:var(--buy)} .btn.buy:hover{background:var(--buy-bg)}
+</style>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 </head>
@@ -259,6 +276,7 @@ body.dopen .leaflet-right{right:415px}
 <div class="toast" id="toast"></div>
 
 <script src="score.js"></script>
+<script src="buyers.js"></script>
 <script>
 let P=[];
 const $=s=>document.querySelector(s);
@@ -374,7 +392,8 @@ function openParcel(id,keepMap){
     ['Census tract',p.tract],['Ward',p.ward],['PIN',p.pin],['Owner on record',p.owner+(p.owner2?' / '+p.owner2:'')],['Owner lots on this list',p.port]];
   const d=$('#drawer');
   d.innerHTML=`<div class="dhead"><div class="ring t-${r.tier}">${r.score}</div><div><h2>${esc(p.addr)}</h2><div class="sub" style="margin-top:4px">Philadelphia, PA ${p.zip} · ${TIER_NAME[r.tier]}${r.tags.length?' · '+r.tags.join(' · '):''}</div></div><button class="x" data-close aria-label="Close">×</button></div>
-  <div class="dbody">
+  <div class="tabs" role="tablist"><button role="tab" data-tab="lot" aria-selected="${DTAB==='lot'}">Lot</button><button role="tab" data-tab="buyers" aria-selected="${DTAB==='buyers'}">Buyers</button></div>
+  <div class="dbody">${DTAB==='buyers'?buyersHTML(p,r):`
     ${p.lat?`<section><h3>Street view</h3>${S.gkey?`<a href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${p.lat},${p.lng}" target="_blank" rel="noopener"><img class="sv" alt="Street view of ${esc(p.addr)}" src="https://maps.googleapis.com/maps/api/streetview?size=640x320&fov=85&location=${gq}&key=${encodeURIComponent(S.gkey)}"></a>`:''}<div class="links"><a href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${p.lat},${p.lng}" target="_blank" rel="noopener">Open Street View</a><a href="#" id="dZoom">Zoom map to lot</a></div>${S.gkey?'':'<div class="note" style="margin-top:6px">To show the street photo right here, add a Google Maps key under Assumptions.</div>'}</section>`:''}
     <section><h3>Bid ladder</h3>
       ${r.units?`<div class="ladder"><div class="step"><div class="l">Open at</div><div class="v">${money(r.open)}</div><div class="d">${S.openPct}% of anchor</div></div><div class="step main"><div class="l">Target</div><div class="v">${money(r.target)}</div><div class="d">${money(r.walk-r.target)} under ceiling</div></div><div class="step"><div class="l">Ceiling</div><div class="v">${money(r.walk)}</div><div class="d">${r.units} × ${money(r.ppu)} per unit</div></div></div>`:`<div class="note">This lot is too small to carry a unit on its own, so there is no bid. It only matters as part of an assemblage.</div>`}
@@ -398,10 +417,13 @@ function openParcel(id,keepMap){
       <div class="rowf" style="margin-bottom:8px"><label class="field">Status<select id="dStatus">${Object.entries(STATUS).map(([k,v])=>`<option value="${k}" ${k===(st.status||'')?'selected':''}>${v}</option>`).join('')}</select></label><button class="btn sm" id="dCopy" style="margin-top:18px">Copy letter</button></div>
       <textarea class="letter" id="dLetter" aria-label="Offer letter">${esc(letter(p,r))}</textarea>
     </section>
-    ${(st.log||[]).length?`<section><h3>Activity</h3><div class="logl">${st.log.slice().reverse().map(l=>`<div>${esc(l.t)} · ${esc(l.detail||l.type)}</div>`).join('')}</div></section>`:''}
+    ${(st.log||[]).length?`<section><h3>Activity</h3><div class="logl">${st.log.slice().reverse().map(l=>`<div>${esc(l.t)} · ${esc(l.detail||l.type)}${l.by?' · '+esc(l.by):''}</div>`).join('')}</div></section>`:''}
     <section><h3>Look it up</h3><div class="links"><a href="https://www.google.com/maps/search/?api=1&query=${gq}" target="_blank" rel="noopener">Map and Street View</a><a href="https://atlas.phila.gov/${encodeURIComponent(p.addr)}" target="_blank" rel="noopener">City Atlas (liens, permits, deeds)</a><a href="https://property.phila.gov/?p=${p.id}" target="_blank" rel="noopener">OPA record</a>${p.ent&&!p.pub?'<a href="https://file.dos.pa.gov/search/business" target="_blank" rel="noopener">PA business search</a>':''}</div></section>
-    <section><h3>Full record</h3><dl class="kv">${raw.map(x=>`<dt>${x[0]}</dt><dd>${esc(x[1])}</dd>`).join('')}</dl></section>
+    <section><h3>Full record</h3><dl class="kv">${raw.map(x=>`<dt>${x[0]}</dt><dd>${esc(x[1])}</dd>`).join('')}</dl></section>`}
   </div>`;
+  d.querySelectorAll('.tabs [data-tab]').forEach(b=>b.onclick=()=>{DTAB=b.dataset.tab;openParcel(id,true)});
+  clearBuyerMap();
+  if(DTAB==='buyers'){wireBuyers(d,p,r);show(d);return}
   d.querySelector('#dLien').onchange=e=>{setLot(id,{lien:e.target.checked});rescore();render();openParcel(id,true)};
   d.querySelector('#dStatus').onchange=e=>{setLot(id,{status:e.target.value},{type:'status',detail:STATUS[e.target.value]});render();openParcel(id,true)};
   d.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>copy(b.dataset.copy,'Copied '+b.dataset.copy));
@@ -438,7 +460,7 @@ function openSettings(){
   show(d);
 }
 function show(d){hide(true);d.classList.add('on');d.setAttribute('aria-hidden','false');$('#scrim').classList.toggle('on',d.id!=='drawer');document.body.classList.toggle('dopen',d.id==='drawer');d.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>hide());const b=d.querySelector('.dbody');if(b)b.scrollTop=0;}
-function hide(keep){document.body.classList.remove('dopen');document.querySelectorAll('.drawer').forEach(d=>{d.classList.remove('on');d.setAttribute('aria-hidden','true')});if(!keep)$('#scrim').classList.remove('on');}
+function hide(keep){document.body.classList.remove('dopen');clearBuyerMap();document.querySelectorAll('.drawer').forEach(d=>{d.classList.remove('on');d.setAttribute('aria-hidden','true')});if(!keep)$('#scrim').classList.remove('on');}
 // ---------- map
 let OUT={},SELID=null,SHAPES=new Map(),GP=null,GD=null,BASE='hybrid',TILES={};
 const TCOL={A:'#27c07d',B:'#4aa8ff',C:'#f0a020',D:'#8c98a3',P:'#5f6e7a'};
@@ -482,6 +504,77 @@ function focusMap(id,force){if(!MAP)return;hilite();const p=P.find(x=>x.id===id)
   setTimeout(hilite,700);}
 $('#btnSide').onclick=()=>{const h=document.body.classList.toggle('side-hid');$('#btnSide').textContent=h?'▶ List':'◀ List'};
 
+// ---------- buyers
+let DTAB='lot',BUILDERS=null,BWEIGHTS={},PIDX={},GB=null,BPIN=null,BLAST=[];
+const BLAB={velocity:'Velocity',trend:'Trend',focus:'Focus',recency:'Recency',sell_through:'Sell-through',fit:'Fit',speed:'Speed'};
+async function loadBuyers(){try{const [b,g]=await Promise.all([fetch('data/builders.json').then(r=>r.json()),fetch('data/projects.geojson').then(r=>r.json())]);
+  BUILDERS=b.builders||[];BWEIGHTS=b.weights||{};PIDX=indexProjects(g);if($('#drawer').classList.contains('on')&&DTAB==='buyers'&&SELID)openParcel(SELID,true)}catch(e){BUILDERS=[]}}
+const kmoney=n=>n==null?'—':n>=1e6?'$'+(n/1e6).toFixed(2)+'M':'$'+Math.round(n/1000)+'k';
+const bphones=b=>(b.phones||[]).map(x=>typeof x==='string'?x:(x.number||x.phone||'')).filter(Boolean);
+const bemails=b=>(b.emails||[]).map(x=>typeof x==='string'?x:(x.email||'')).filter(Boolean);
+function buyersHTML(p,r){
+  if(BUILDERS===null)return '<div class="note">Loading buyers…</div>';
+  if(!BUILDERS.length)return '<div class="note">No buyer data found. Add <span class="num">builders.json</span> and <span class="num">projects.geojson</span> to <span class="num">web/data</span>.</div>';
+  if(p.lat==null)return '<div class="note">This lot has no map location, so nearby builders cannot be matched.</div>';
+  BLAST=rankBuyers(p,BUILDERS,PIDX);
+  return `<section><h3>Most likely buyers for this lot</h3>
+    <div class="note" style="margin-bottom:8px">Builders ranked by track record and how much they have built within ${RADIUS_MI} mi. Hover one to see its projects on the map. Tap for the detail.</div>
+    ${BLAST.map((m,i)=>{const b=m.builder,ph=bphones(b),em=bemails(b);
+      const comp=Object.keys(BLAB).filter(k=>b['s_'+k]!=null);
+      return `<div class="by" data-b="${i}">
+      <button class="byh" type="button" aria-expanded="false"><span class="bym">${Math.round(m.match)}</span><span style="min-width:0"><div class="byn">${esc(b.name)}</div><div class="byr">${esc(m.reason)}</div></span><span class="muted num" style="font-size:11px">▾</span></button>
+      <div class="byd">
+        <div class="rowf" style="margin-top:10px"><button class="btn sm buy" data-bcall="${i}">Call</button><button class="btn sm" data-bmap="${i}">Show projects on map</button></div>
+        <h4>Match ${m.match}</h4><div class="note">Builder score ${b.score} × ${m.factor.toFixed(1)} for ${m.nearby.length} project${m.nearby.length===1?'':'s'} nearby (full credit at ${NEARBY_CAP}).</div>
+        <h4>Score ${b.score}${b.confidence!=null?' · confidence '+Math.round(b.confidence*100)+'%':''}</h4>
+        ${comp.map(k=>`<div class="bar"><div>${BLAB[k]}</div><div class="track"><div class="fill" style="width:${b['s_'+k]}%"></div></div><div class="num" style="text-align:right">${Math.round(b['s_'+k])}${BWEIGHTS[k]!=null?' <span class="muted">×'+BWEIGHTS[k]+'</span>':''}</div></div>`).join('')}
+        <h4>Track record</h4><div class="facts">${[['Lots bought',b.acquisitions],['Last 12 mo',b.acq_12m],['Last active',b.last_activity||'—'],['Median land price',kmoney(b.median_land_price)],['Median units',b.median_units??'—'],['Median sale',kmoney(b.median_sale_price)],['Sold',b.sold+(b.sell_through!=null?' ('+Math.round(b.sell_through*100)+'%)':'')],['Hold',b.median_hold_days!=null?Math.round(b.median_hold_days)+' d':'—'],['Build time',b.median_days_to_complete!=null?Math.round(b.median_days_to_complete)+' d':'—']].map(f=>`<div class="fact"><div class="l">${f[0]}</div><div class="v">${esc(f[1])}</div></div>`).join('')}</div>
+        ${m.nearby.length?`<h4>Nearby projects</h4><div class="logl" style="max-height:120px">${m.nearby.map(x=>`<div>${x.miles.toFixed(2)} mi · ${esc(x.address)}${x.units?' · '+x.units+'u':''}${x.land_price?' · land '+kmoney(x.land_price):''}${x.land_bought?' · '+x.land_bought.slice(0,7):''}</div>`).join('')}</div>`:''}
+        <h4>Who to reach</h4><div class="note">${(b.people||[]).length?b.people.map(x=>esc(x.name)+(x.role?' <span class="muted">('+esc(x.role)+')</span>':'')).join(', '):'No people on file.'}${b.registered_address?'<br>'+esc(b.registered_address):''}${ph.length?'<br><span class="num">'+ph.map(esc).join(', ')+'</span>':''}${em.length?'<br><span class="num">'+em.map(esc).join(', ')+'</span>':''}${b.top_contractor?'<br>Contractor: '+esc(b.top_contractor.trim()):''}</div>
+        ${(b.llc_names||[]).length>1?`<h4>Buys as</h4><div class="note">${b.llc_names.map(esc).join(', ')}</div>`:''}
+      </div></div>`}).join('')}</section>`;
+}
+function clearBuyerMap(){BPIN=null;if(GB&&MAP){GB.clearLayers()}}
+function showBuyerMap(p,m,fit){if(!MAP)return;if(!GB)GB=L.layerGroup().addTo(MAP);GB.clearLayers();const pts=[[p.lat,p.lng]];
+  L.circle([p.lat,p.lng],{radius:RADIUS_MI*1609.34,color:'#c79bff',weight:1.2,dashArray:'5 5',fill:false,interactive:false}).addTo(GB);
+  const near=new Set(m.nearby.map(x=>x.address));
+  for(const x of PIDX[m.builder.builder_id]||[]){const n=near.has(x.address);
+    L.circleMarker([x.lat,x.lng],{radius:n?6.5:4,color:'#ffffff',weight:n?1.5:.5,fillColor:'#c79bff',fillOpacity:n?.95:.4,opacity:n?1:.5})
+      .bindTooltip(`<b>${esc(x.address)}</b><br>${esc(x.buyer_llc||m.builder.name)}<br>${x.units?x.units+' units · ':''}${x.land_price?'land '+kmoney(x.land_price):'land price n/a'}${x.land_bought?' · bought '+x.land_bought.slice(0,7):''}${x.sale_price?'<br>sold '+kmoney(x.sale_price)+(x.sold_date?' · '+x.sold_date.slice(0,7):''):''}`,{className:'tip',direction:'top',offset:[0,-6]}).addTo(GB);
+    if(n)pts.push([x.lat,x.lng])}
+  if(fit)MAP.flyToBounds(fit==='radius'?L.latLng(p.lat,p.lng).toBounds(RADIUS_MI*1609.34*2.1):L.latLngBounds(pts).pad(.25),{paddingTopLeft:[document.body.classList.contains('side-hid')?30:460,50],paddingBottomRight:[430,50],maxZoom:17.5,duration:.6});}
+function wireBuyers(d,p,r){
+  d.querySelectorAll('.by').forEach(el=>{const i=+el.dataset.b,m=BLAST[i];
+    el.onmouseenter=()=>{if(BPIN==null)showBuyerMap(p,m)};
+    el.onmouseleave=()=>{if(BPIN==null&&GB)GB.clearLayers()};
+    el.querySelector('.byh').onclick=()=>{const open=!el.classList.contains('open');d.querySelectorAll('.by.open').forEach(o=>{o.classList.remove('open');o.querySelector('.byh').setAttribute('aria-expanded','false')});
+      if(open){el.classList.add('open');el.querySelector('.byh').setAttribute('aria-expanded','true');BPIN=i;showBuyerMap(p,m)}else{BPIN=null}};
+    el.querySelector('[data-bmap]').onclick=()=>{BPIN=i;showBuyerMap(p,m,m.nearby.length?'near':'radius')};
+    el.querySelector('[data-bcall]').onclick=()=>openBuyerDesk(p,r,m)});}
+function openBuyerDesk(p,r,m){const d=$('#desk'),b=m.builder,ph=bphones(b),em=bemails(b);
+  const who=(b.people||[])[0],first=who?who.name.split(' ')[0].toLowerCase().replace(/^./,c=>c.toUpperCase()):'there';
+  const nb=m.nearby[0],log=((ST[p.id]||{}).log||[]).filter(l=>l.type==='buyer');
+  const q=encodeURIComponent(b.name+' Philadelphia developer phone');
+  d.innerHTML=`<div class="deskbar"><h2>Call desk · buyer</h2><span class="sub">Selling ${esc(p.addr)} · match ${m.match}</span><button class="btn" id="kClose" style="margin-left:auto">Close</button></div>
+  <div class="deskgrid" style="grid-template-columns:1fr"><div class="dmain" style="margin:0 auto;width:100%">
+    <div><div class="sub">${esc(m.reason)}</div><h2>${esc(b.name)}</h2>
+      <div class="note">${(b.people||[]).length?b.people.map(x=>esc(x.name)+(x.role?' ('+esc(x.role)+')':'')).join(' · '):'No people on file'}${b.registered_address?'<br>'+esc(b.registered_address):''}</div></div>
+    <div>${ph.map((n,i)=>`<div class="phone ${i?'old':''}"><a class="dial" href="${tel(n)}">${esc(n)}</a><span style="flex:1"></span><button class="btn sm" data-copy="${esc(n)}">Copy</button></div>`).join('')}
+      ${em.map(e=>`<div class="phone"><span class="num" style="flex:1;font-size:15px">${esc(e)}</span><button class="btn sm" data-copy="${esc(e)}">Copy</button></div>`).join('')}
+      ${ph.length||em.length?'':`<div class="box note"><b class="dn">No phone or email on file for this builder.</b> The builders file has names and a registered address only. Look the number up, then log the call here.<div class="links" style="margin-top:8px"><a href="https://www.google.com/search?q=${q}" target="_blank" rel="noopener">Search the web</a><a href="https://file.dos.pa.gov/search/business" target="_blank" rel="noopener">PA business search</a>${b.top_contractor?`<a href="https://www.google.com/search?q=${encodeURIComponent(b.top_contractor.trim()+' Philadelphia')}" target="_blank" rel="noopener">Their contractor</a>`:''}</div></div>`}</div>
+    <div class="ladder"><div class="step"><div class="l">Your target bid</div><div class="v">${r.units?money(r.target):'—'}</div><div class="d">ceiling ${r.units?money(r.walk):'—'}</div></div><div class="step main"><div class="l">Their median land price</div><div class="v">${kmoney(b.median_land_price)}</div><div class="d">across ${b.acquisitions} lots, all sizes</div></div><div class="step"><div class="l">They build</div><div class="v" style="color:var(--ink)">${b.median_units??'—'} units</div><div class="d">this lot: ${r.units} by right</div></div></div>
+    <div class="script">Hi ${esc(first)}, this is ${esc(S.sender||'[your name]')}. I have a vacant ${esc(p.zone.replace(/^RM/,'RM-'))} lot at ${esc(p.addr)}, ${p.area?Math.round(p.area).toLocaleString()+' square feet':'size on request'}${p.fr?', '+(+p.fr.toFixed(1))+' feet of frontage':''}, ${r.units} unit${r.units===1?'':'s'} by right.${nb?' It is '+nb.miles.toFixed(2)+' miles from your project at '+esc(nb.address.toLowerCase().replace(/\b[a-z]/g,c=>c.toUpperCase()))+'.':''} Are you buying in ${p.zip} right now?</div>
+    <ul class="pts">${[m.nearby.length?m.nearby.length+' of their projects are within '+RADIUS_MI+' mi of this lot':'Nothing of theirs within '+RADIUS_MI+' mi: this would be a new area for them',b.acq_12m?b.acq_12m+' lots bought in the last 12 months'+(b.last_activity?', most recent activity '+b.last_activity:''):(b.last_activity?'Last activity '+b.last_activity:''),b.sold?'Sold '+b.sold+' of '+b.acquisitions+(b.median_sale_price?', median sale '+kmoney(b.median_sale_price):''):'',b.median_hold_days?'Typically holds '+Math.round(b.median_hold_days)+' days from purchase to sale':'','City values this lot at '+money(p.mv)+(r.lien?'. It carries a tax lien.':'')].filter(Boolean).map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
+    <div><h3>Log the outcome</h3><div class="outs"><button class="btn" data-bout="No answer">No answer</button><button class="btn" data-bout="Left voicemail">Left voicemail</button><button class="btn g" data-bout="Interested">Interested</button><button class="btn g" data-bout="Wants details sent">Wants details sent</button><button class="btn r" data-bout="Passed">Passed</button></div>
+      <input class="search" id="kNote" placeholder="Note for the log (optional): price they named, who you spoke to" style="margin-top:8px;width:100%"></div>
+    ${log.length?`<div><h3>Buyer activity on this lot</h3><div class="logl">${log.slice().reverse().map(l=>`<div>${esc(l.t)} · ${esc(l.detail)}${l.by?' · '+esc(l.by):''}</div>`).join('')}</div></div>`:''}
+  </div></div>`;
+  d.querySelector('#kClose').onclick=()=>d.classList.remove('on');
+  d.querySelectorAll('[data-copy]').forEach(x=>x.onclick=()=>copy(x.dataset.copy,'Copied '+x.dataset.copy));
+  d.querySelectorAll('[data-bout]').forEach(x=>x.onclick=()=>{const note=d.querySelector('#kNote').value.trim();
+    setLot(p.id,{},{type:'buyer',detail:'Buyer '+b.name+': '+x.dataset.bout+(note?': '+note:'')});toast('Logged');openBuyerDesk(p,r,m)});
+  d.classList.add('on');}
+
 // ---------- call desk
 let DQ=[],DI=0,DUNV=false;
 function buildDesk(){const seen=new Set();DQ=[];
@@ -513,7 +606,7 @@ function renderDesk(){const d=$('#desk');buildDesk();const p=DQ[DI];
       <button class="btn" data-out="called">No answer</button><button class="btn" data-out="voicemail">Left voicemail</button><button class="btn g" data-out="callback">Call back</button><button class="btn g" data-out="interested">Interested</button>
       <button class="btn r" data-out="dead">Not interested</button><button class="btn r" data-out="wrong">Wrong person</button><button class="btn r" data-out="dnc">Do not contact</button><button class="btn" data-out="skip">Skip</button></div>
       <input class="search" id="kNote" placeholder="Note for the log (optional): counter-offer, best time to call back" style="margin-top:8px;width:100%"></div>
-    ${((ST[p.id]||{}).log||[]).length?`<div><h3>Activity</h3><div class="logl">${ST[p.id].log.slice().reverse().map(l=>`<div>${esc(l.t)} · ${esc(l.detail||l.type)}</div>`).join('')}</div></div>`:''}
+    ${((ST[p.id]||{}).log||[]).length?`<div><h3>Activity</h3><div class="logl">${ST[p.id].log.slice().reverse().map(l=>`<div>${esc(l.t)} · ${esc(l.detail||l.type)}${l.by?' · '+esc(l.by):''}</div>`).join('')}</div></div>`:''}
   </div></div>`;wireDesk();}
 function wireDesk(){const d=$('#desk');
   d.querySelector('#kClose').onclick=()=>{d.classList.remove('on');render()};
@@ -589,7 +682,7 @@ $('#btnExport').onclick=async()=>{
   const c=csv();if(!c.n){toast('Nothing to export with these filters');return}
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c.text],{type:'text/csv'}));a.download='jake-land-outreach-'+new Date().toISOString().slice(0,10)+'.csv';a.click();URL.revokeObjectURL(a.href);toast(c.n+' lots exported');
 };
-fetch('data/parcels.json').then(r=>r.json()).then(async d=>{P=d;OUT=await fetch('data/outlines.json').then(r=>r.ok?r.json():{}).catch(()=>({}));await syncServer();rescore();initMap();render(true);drawMap(true)}).catch(()=>{$('#rows').innerHTML='<div class="empty">Could not load data/parcels.json. Start the app with: python server.py</div>'});
+fetch('data/parcels.json').then(r=>r.json()).then(async d=>{P=d;OUT=await fetch('data/outlines.json').then(r=>r.ok?r.json():{}).catch(()=>({}));await syncServer();rescore();initMap();render(true);drawMap(true);loadBuyers()}).catch(()=>{$('#rows').innerHTML='<div class="empty">Could not load data/parcels.json. Start the app with: python server.py</div>'});
 </script>
 </body>
 </html>
